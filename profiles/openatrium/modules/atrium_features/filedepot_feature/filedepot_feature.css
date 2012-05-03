@@ -1,9 +1,5 @@
 /* $Id: */
  
-#content { width:99% !important; }
-#right { display:none; }
-  
-  
 #features-menu li a.icon-filedepot span.icon {
 background:url("filecabinet.png") no-repeat scroll 0 0 transparent;
 display:block;
