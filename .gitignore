@@ -4,3 +4,9 @@ sites/default/settings.php
 cache/
 files/
 .htaccess
+
+#Excluding eclipse files
+.settings
+.buildpath
+.project
+.settings/*
