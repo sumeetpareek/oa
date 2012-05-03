@@ -1,0 +1,16 @@
+name = Filedepot
+version = 6.x-1.2
+description = Filedepot File Management System
+core = 6.x
+php = 5.x;
+dependencies[] = filefield
+dependencies[] = libraries
+package = File management
+
+
+; Information added by drupal.org packaging script on 2011-04-12
+version = "6.x-1.2"
+core = "6.x"
+project = "filedepot"
+datestamp = "1302637315"
+

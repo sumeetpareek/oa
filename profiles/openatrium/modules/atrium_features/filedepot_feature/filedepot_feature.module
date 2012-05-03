@@ -1,0 +1,21 @@
+<?php
+
+include_once('filedepot_feature.features.inc');
+
+/**
+* Implementation of hook_init().
+*/
+function filedepot_feature_init() {
+  drupal_add_css(drupal_get_path('module', 'filedepot_feature') .'/filedepot_feature.css');
+}
+
+/**
+ * Implementation of hook_menu_alter().
+ */
+function filedepot_feature_menu_alter(&$items) {
+  // Change the menu access to be spaces aware and only show if feature is enabled for space
+  if (isset($items['filedepot'])) {
+    $items['filedepot']['access callback']  = 'spaces_access_feature';
+    $items['filedepot']['access arguments'] = array('view', 'filedepot_feature');
+  }
+}

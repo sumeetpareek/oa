@@ -1,0 +1,36 @@
+/* $Id: */
+ 
+#content { width:99% !important; }
+#right { display:none; }
+  
+  
+#features-menu li a.icon-filedepot span.icon {
+background:url("filecabinet.png") no-repeat scroll 0 0 transparent;
+display:block;
+float:left;
+height:40px;
+width:40px;  
+}  
+
+
+#filedepot_sidecol {
+  float:left;
+  width:210px;
+  background-color: transparent !important;
+  border-right:0px !important;
+}
+
+#filedepotNavTreeDiv table {
+  background-color: transparent;
+}
+
+.filedepot_perms_leftoption {
+  margin-right:5px;
+  width:120px;
+  float:left;
+}
+
+.filedepot_perms_rightoption {
+  width:155px;
+  float:left;
+}
