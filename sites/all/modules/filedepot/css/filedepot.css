@@ -2,6 +2,10 @@
 
 body.layout-left-main .outer { margin-left:0px !important; }
 
+/* layout fix needed when using filedepot with OA - http://icarda2.benale.net/content/filedepot-adding-document-repository-feature-open-atrium */
+#content { width:99% !important; }
+#right { display:none; }
+
 /* Filedepot CSS */
 
 #filedepot {
