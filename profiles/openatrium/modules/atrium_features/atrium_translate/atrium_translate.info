@@ -1,0 +1,12 @@
+; $Id$
+name = Atrium translation
+description = Provides automatic downloads and updates for Atrium translations
+dependencies[] = l10n_update
+core = 6.x
+package = Multilanguage
+
+; Information added by drush on 2012-03-23
+version = "6.x-1.2"
+core = "6.x"
+datestamp = "1332530223"
+

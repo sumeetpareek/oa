@@ -1,0 +1,20 @@
+name = "Atrium Activity"
+description = "Activity streams for showing new posts, updates and comments."
+core = "6.x"
+package = "Features"
+dependencies[] = "comment"
+dependencies[] = "context"
+features[context][] = "activity_profile"
+features[ctools][] = "context:context:3"
+features[views][] = "activity_listing"
+features[views_api][] = "api:2"
+kitf = "1.0-draft"
+
+; Autodetected dependencies that are omitted: og_views, spaces
+
+
+; Information added by drush on 2012-03-23
+version = "6.x-1.2"
+core = "6.x"
+datestamp = "1332530223"
+
