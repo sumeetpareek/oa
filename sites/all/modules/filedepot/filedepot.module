@@ -1079,7 +1079,7 @@ function template_preprocess_filedepot_main_page(&$variables) {
   $variables['actionurl_dir']         = base_path() . drupal_get_path('module', 'filedepot');
   $variables['LANG_searchprompt']     = t('Keyword Search');
   $variables['filedepot_javascript_url']= base_path() . drupal_get_path('module', 'filedepot') . '/js/';
-  $variables['yui_uploader_url'] = libraries_get_path('yui_uploader.swf');
+  $variables['yui_uploader_url'] = libraries_get_path('yui_uploader.swf', TRUE);
   $variables['LANG_addfolder'] = t('Add a new folder');
   $variables['LANG_moveselected'] = t('Move Selected File');
   $variables['LANG_selectdestination'] = t('Select the destination folder');
