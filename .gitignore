@@ -10,3 +10,8 @@ files/
 .buildpath
 .project
 .settings/*
+
+# Excluding files saved in the filedepot private folder
+filedepot_private/
+filedepot_private/*
+
