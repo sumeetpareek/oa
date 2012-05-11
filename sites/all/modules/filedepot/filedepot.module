@@ -374,15 +374,20 @@ function filedepot_user_access($perm) {
   if (isset($_POST['cookie_session']) AND !empty($_POST['cookie_session'])) {
 
     /* Code added to handle the issue with the default $_COOKIE array being sent by the Flash Image uploader
-    * We can send the cookies in the post form data and then extract and rebuild the user object
-    */
+     * We can send the cookies in the post form data and then extract and rebuild the user object
+     */
 
     // Check if the session is still active, we have a record of the client's session in the database.
     $user = db_fetch_object(db_query("SELECT u.*, s.* FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.sid = '%s'", $_POST['cookie_session']));
 
     // We found the client's session record and they are an authenticated user
     if ($user && $user->uid > 0) {
-      // This is done to unserialize the data member of $user and restore their session
+      // The user_load function was over-writing the SESSION record and allowing IE to hijack the session
+      // Issue was only seen when uploading files with FF and using IE on the same desktop
+      // Adding the session_save_session(FALSE) skips the updating of the session table
+      session_save_session(FALSE);
+
+      // Reload the user object - this is done to unserialize the data member of $user and restore their session
       $user = user_load($user->uid);
     }
   }
@@ -442,12 +447,15 @@ function filedepot_access($op, $node) {
  * Implementation of hook_main().
  */
 function filedepot_main($id=0) {
+
   $yui_base_url = variable_get('filedepot_yui_baseurl', 'http://yui.yahooapis.com/2.7.0/build/');
   $modulepath = drupal_get_path('module', 'filedepot');
-  drupal_add_css($modulepath . '/css/filedepot.css');
+  // Load the YUI loader which is required to load the YUI libraries defined in JS at the top of filedepot-mainpage.tpl.php
   drupal_set_html_head('<script type="text/javascript" src="'. $yui_base_url.'yuiloader/yuiloader.js"></script>');
+
+  drupal_add_css($modulepath . '/css/filedepot.css');
   drupal_add_js($modulepath . '/js/filedepotlanguage.js');
-  drupal_add_js($modulepath . '/js/nexpro.js');
+  drupal_add_js($modulepath . '/js/lib-nextide.js');
   drupal_add_js($modulepath . '/js/initapplication.js');
   drupal_add_js($modulepath . '/js/common.js');
   drupal_add_js(libraries_get_path('jquery.blockui.js'));
@@ -689,6 +697,8 @@ function filedepot_download($node, $fid, $version, $mode='') {
         'Cache-Control: private',
         );
         if (count($headers)) {
+          watchdog('filedepot', 'Transferring incoming file %name (filedepot fid %fid, CCK fid %cckfid)',
+            array('%name' => $filetitle, '%fid' => $fid, '%cckfid' => $cckfid), WATCHDOG_INFO);
           file_transfer($filepath, $headers);
         }
 
@@ -704,9 +714,9 @@ function filedepot_download($node, $fid, $version, $mode='') {
 
   }
   else {
+
     $version = intval($version);
     if ($version > 0) {
-
       $filetitle = db_result(db_query("SELECT title FROM {filedepot_files} WHERE fid=%d", $fid));
       $fname = db_result(db_query("SELECT fname FROM {filedepot_fileversions} WHERE fid=%d AND version=%d", $fid, $version));
       $cid = db_result(db_query("SELECT cid FROM {filedepot_files} WHERE fid=%d", $fid));
@@ -721,16 +731,17 @@ function filedepot_download($node, $fid, $version, $mode='') {
       list($cid, $fname, $tempname, $filetitle) = array_values($rec);
     }
     else {
-      $query = db_query("SELECT cid,fname,title FROM {filedepot_files} WHERE fid=%d", $fid);
+      $query = db_query("SELECT cid,fname,title,version FROM {filedepot_files} WHERE fid=%d", $fid);
       $rec = db_fetch_array($query);
       if ($rec === FALSE) {
         watchdog('filedepot', "Download request - invalid file reference");
         return drupal_access_denied();
       }
       else {
-        list($cid, $fname, $filetitle) = array_values($rec);
+        list($cid, $fname, $filetitle,$version) = array_values($rec);
       }
     }
+
     if ($cid == 0) {
       watchdog('filedepot', "Download request - null category id");
       return drupal_access_denied();
@@ -810,6 +821,8 @@ function filedepot_download($node, $fid, $version, $mode='') {
         );
 
         if (count($headers)) {
+          watchdog('filedepot', 'Transferring file %name (filedepot fid %fid, CCK fid %cckfid)',
+            array('%name' => $name, '%fid' => $fid, '%cckfid' => $file->fid), WATCHDOG_INFO);
           file_transfer($filepath, $headers);
         }
       }
@@ -818,160 +831,6 @@ function filedepot_download($node, $fid, $version, $mode='') {
     }
   }
 
-}
-
-
-/**
- * Implements hook_nodeapi().
- */
-function filedepot_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
-  global $conf, $user;
-  $filedepot = filedepot_filedepot();
-  module_load_include('php','filedepot','lib-common');
-
-  if ($op == 'insert' || $op == 'update') {
-    if (is_object($node)) {
-      $newfiles = array();
-      $updatefiles = array();
-      $depotfiles = array();
-      /* Determine how many files Filedepot has record for in this folder
-       * Build an array so that we can determine if anyone removes a file via the Drupal UI or external to filedepot
-       */
-      $cid = db_result(db_query("SELECT cid FROM {filedepot_categories} WHERE nid=%d", $node->nid));
-      if ($cid > 0) {
-        $nexquery = db_query("SELECT fid FROM {filedepot_files} WHERE cid=%d", $cid);
-        while ($A = db_fetch_array($nexquery)) {
-          $depotfiles[$A['fid']] = 1;   // Array of existing folder files
-        }
-        $system_directory_path = $conf['file_directory_path'];
-        $real_system_directory_path = realpath($system_directory_path);
-
-        $filedepot_private_directory_path = $filedepot->root_storage_path . $cid;
-        // The $file['realname'] element is added in the filedepot class when saving a new file before calling the node_save API.
-        if (is_array($node->field_filedepot_file) AND count($node->field_filedepot_file) > 0) {
-          foreach ($node->field_filedepot_file as $file) {
-            if (file_exists($file['filepath']) AND isset($file['realname'])) {
-              $file['realpath'] = realpath($file['filepath']);
-              // If within the private path, ignore the file
-              if (strpos($file['realpath'], $filedepot_private_directory_path) !== 0) {
-                if ($file['moderated'] AND !empty($file['moderated_tmpname'])) {
-                  $file['dest'] = rtrim($filedepot_private_directory_path, '\\/') .'/submissions/'. $file['moderated_tmpname'];
-                }
-                elseif ($file['incoming'] AND !empty($file['incoming_tmpname'])) {
-                  $file['dest'] = rtrim($filedepot_private_directory_path, '\\/') .'/'. $file['realname'];
-                }
-                else {
-                  $file['dest'] = rtrim($filedepot_private_directory_path, '\\/') .'/'. $file['realname'];
-                }
-                $newfiles[$file['fid']] = $file;
-              }
-            }
-            elseif (is_array($file)) {
-              /* file['realname'] would only be set for new files (attachments) being added to the node_save ('update')
-              * Someone is editing the folder and or files via the drupal interface
-              * Need to process as the file description may have changed
-              */
-
-              // Check for allowable file type.
-              if (!$filedepot->checkFilter($file['filename'], $file['filemime'])) {
-                // Error - TODO Find a better way
-                $delete = file_delete($file['filepath']);
-                db_query("DELETE FROM {files} WHERE filepath = '%s'", $file['filepath']);
-                $message = t('The file %name could not be uploaded. Mimetype %mimetype or extension not permitted.', array('%name' => $file['filename'], '%mimetype' => $file['filemime']));
-                drupal_set_message($message, 'error');
-                watchdog('filedepot', 'The file %name could not be uploaded. Mimetype %mimetype or extension not permitted.', array('%name' => $file['filename'], '%mimetype' => $file['filemime']));
-                return TRUE;
-              }
-
-              $unapprovedfile = FALSE;
-              $filedepot_fid = db_result(db_query("SELECT fid FROM {filedepot_files} WHERE cckfid=%d", $file['fid']));
-              if ($filedepot_fid === FALSE) {  // If not, check if there is a record in the submissions table that has just not been approved
-                $id = db_result(db_query("SELECT id FROM {filedepot_filesubmissions} WHERE cckfid=%d", $file['fid']));
-                if ($id > 0) $unapprovedfile = TRUE; // Found a record for this file in the submission queue
-              }
-              if ($unapprovedfile === FALSE AND $filedepot_fid === FALSE AND is_array($file)) {
-                // A new file was attached via the Drupal UI or external API - need to process
-                $file['dest'] = rtrim($filedepot_private_directory_path, '\\/') .'/'. $file['filename'];
-                $newfiles[$file['fid']] = $file;
-
-                $ext = end(explode(".", $file['filename']));
-                // Create filedepot record for file and set status of file to 1 - online
-                $sql = "INSERT INTO {filedepot_files} (cid,fname,title,description,version,cckfid,size,mimetype,extension,submitter,status,date) "
-                . "VALUES (%d,'%s','%s','%s',1,%d,%d,'%s','%s',%d,1,%d)";
-                db_query($sql, $cid, $file['filename'], $file['filename'], $file['data']['description'], $file['fid'], $file['filesize'], $file['filemime'], $ext, $user->uid, time() );
-
-                // Get fileid for the new file record
-                $args = array($cid, $user->uid);
-                $fid = db_result(db_query_range("SELECT fid FROM {filedepot_files} WHERE cid=%d AND submitter=%d ORDER BY fid DESC", $args, 0, 1));
-                $newfiles[$file['fid']]['nexfid'] = $fid;
-
-                db_query("INSERT INTO {filedepot_fileversions} (fid,fname,version,notes,size,date,uid,status)
-                VALUES (%d,'%s','1','',%d,%d,%d,1)", $fid, $file['filename'], $file['filesize'], time(), $user->uid);
-
-                // Update related folders last_modified_date
-                $workspaceParentFolder = filedepot_getTopLevelParent($cid);
-                filedepot_updateFolderLastModified($workspaceParentFolder);
-
-              }
-              elseif ($filedepot_fid > 0 AND $unapprovedfile === FALSE) {
-                $updatefiles[$filedepot_fid] = $file;
-              }
-            }
-          }
-        }
-
-        foreach ($newfiles as $file) {
-          $conf['file_directory_path'] = $filedepot_private_directory_path;
-          $src = $file['filepath'];
-            // After a successful file_move, $src will be the set to the new filename including path
-            // In case of a duplicate file in the destination directory,
-            // the variable $src will be updated with the resulting appended incremental number
-            // Refer to the drupal file_move API
-            if (file_move($src, $file['dest'], FILE_EXISTS_RENAME)) {
-              // update db with the filename and full name including directory after the successful move
-              db_query("UPDATE {files} SET filename = '%s', filepath = '%s' WHERE fid = %d", basename($src), $src, $file['fid']);
-              // Only need to do this if file is being added from the Drupal UI
-              if (isset($file['nexfid']) AND $file['nexfid'] > 0) {
-                db_query("UPDATE {filedepot_files} SET fname = '%s'  WHERE fid = %d", basename($src), $file['nexfid']);
-            }
-          }
-          else {
-              // Error - TODO Find a better way
-              $delete = file_delete($file['filepath']);
-              db_query("DELETE FROM {files} WHERE filepath = '%s'", $file['filepath']);
-              if ($delete) {
-                drupal_set_message(t('Error moving the file from the public to private file directories. The file was deleted as a pre-caution from the public error. The node file details should be updated by removing the file reference.'), 'error');
-              }
-              else {
-                drupal_set_message(t('Error moving the file from the public to private file directories. This file could not be deleted from the public file area and should be removed manually. Please report this to your system administrator. Filepath: "%filepath".', array('%filepath' => $file['filepath'])), 'error');
-            }
-          }
-          $conf['file_directory_path'] = $system_directory_path;
-        }
-
-        foreach ($updatefiles as $id => $file) {
-          /*
-           * May 11/2010 (Blaine): Commented this update out as there are reports of files having descriptions cleared.
-           * Not sure right now what condition this update was required for as it appears to work just fine without it.
-           */
-
-          //db_query("UPDATE {filedepot_files} SET description = '%s' WHERE fid=%d", $file['data']['description'], $id);
-          unset($depotfiles[$id]);
-        }
-
-        // Remove any files that filedepot still has on record but where not in the updated files
-        // A file was removed using the Drupal UI or external API
-        foreach ($depotfiles as $id => $remove) {
-          $filedepot->deleteFile($id);
-        }
-      }
-
-    }
-
-  }
-  elseif ($op == 'delete') {  // Called when folder node is deleted
-    $filedepot->deleteFolder($node->nid);
-  }
 }
 
 
@@ -1059,9 +918,9 @@ function template_preprocess_filedepot_main_page(&$variables) {
 
   module_load_include('php','filedepot','lib-common');
 
-  if (isset($variables['cid'])) {
+  if (isset($variables['cid']) AND $variables['cid'] > 0) {
     $folderid = $variables['cid'];
-  } elseif (!isset($_GET['cid'])) {
+  } elseif (isset($_GET['cid']) AND $_GET['cid'] > 0) {
     $folderid = $_GET['cid'];
   } elseif (!isset($_GET['cid'])) {
     $folderid = 0;
@@ -1078,8 +937,9 @@ function template_preprocess_filedepot_main_page(&$variables) {
   $variables['ajax_server_url']       = url('filedepot_ajax');
   $variables['actionurl_dir']         = base_path() . drupal_get_path('module', 'filedepot');
   $variables['LANG_searchprompt']     = t('Keyword Search');
-  $variables['filedepot_javascript_url']= base_path() . drupal_get_path('module', 'filedepot') . '/js/';
-  $variables['yui_uploader_url'] = libraries_get_path('yui_uploader.swf', TRUE);
+  $variables['filedepot_javascript_url'] = base_path() . drupal_get_path('module', 'filedepot') . '/js/';
+  $variables['yui_uploader_url']         = base_path() . libraries_get_path('yui_uploader.swf');
+
   $variables['LANG_addfolder'] = t('Add a new folder');
   $variables['LANG_moveselected'] = t('Move Selected File');
   $variables['LANG_selectdestination'] = t('Select the destination folder');
@@ -1274,6 +1134,31 @@ function filedepot_og($op, $gid, $uid, $args) {
           }
           $modified = TRUE;
           break;
+
+        case 'admin new':
+          if (variable_get('auto_create_group_rootfolder_enabled', 0) == 1) {
+            /* Admin is being added to the OG Group. This happens when the group is first created but
+             * will also occur if another admin is added so we need to test for this.
+             * If first Admin - new Group being created then create a new ROOT level filedepot folder */
+            if (db_result(db_query("SELECT cid FROM {filedepot_categories} WHERE group_nid=%d AND pid=0", $gid)) === FALSE) {
+              $group = node_load($gid);
+              $user = user_load($uid);
+              $node = (object) array(
+              'uid' => $uid,
+              'name' => $user->name,
+              'type' => 'filedepot_folder',
+              'title' => $group->title,
+              'parentfolder' => 0,
+              'folderdesc'  => $group->og_description,
+              'inherit'     => 1,
+              'group_nid'   => $gid
+              );
+              node_save($node);
+              watchdog('filedepot',"New Organic Group created @name - new filedepot folder created.", array('@name' => $group->title));
+            }
+          }
+          break;
+
       }
 
       if ($modified) {
@@ -1281,5 +1166,158 @@ function filedepot_og($op, $gid, $uid, $args) {
         db_query("UPDATE {filedepot_usersettings} set allowable_view_folders = '' WHERE uid=%d", $uid);
       }
     }
+}
+
+
+
+function filedepot_file_delete(&$file) {
+  if (isset($file->fid) AND $file->fid > 0 AND $file->fieldname = 'field_filedepot_file') {
+      $filedepot_fid = db_result(db_query("SELECT fid FROM {filedepot_files} WHERE cckfd=%d", $file->fid));
+      if ($filedepot_fid !== FALSE and $filedepot_fid > 0) {
+        // User deleting a file using the DRUPAL UI
+        $filedepot = filedepot_filedepot();
+        $filedepot->deleteFile($filedepot_fid);
+      }
+  }
+}
+
+/**
+* Implements hook_nodeapi().
+*/
+function filedepot_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  global $conf, $user;
+
+
+  $filedepot = filedepot_filedepot();
+  module_load_include('php','filedepot','lib-common');
+
+  if ($op == 'insert' || $op == 'update') {  // Deleting files via the DRUPAL UI handled by the filefield module HOOK_file_delete
+    if (is_object($node)) {
+
+      $newfiles = array();
+      $depotfiles = array();
+      /* Determine how many files Filedepot has record for in this folder
+       * Build an array so that we can determine if anyone removes a file via the Drupal UI or external to filedepot
+       */
+      $cid = db_result(db_query("SELECT cid FROM {filedepot_categories} WHERE nid=%d", $node->nid));
+      if ($cid > 0) {
+        $nexquery = db_query("SELECT fid, cckfid FROM {filedepot_files} WHERE cid=%d", $cid);
+        while ($A = db_fetch_array($nexquery)) {
+          $depotfiles[$A['fid']] = $A['cckfid'];   // Array of existing folder files
+        }
+        $system_directory_path = $conf['file_directory_path'];
+        $real_system_directory_path = realpath($system_directory_path);
+
+        $filedepot_private_directory_path = $filedepot->root_storage_path . $cid;
+
+        if (is_array($node->field_filedepot_file) AND count($node->field_filedepot_file) > 0) {
+          // Loop thru all the attached file in this node looking for one filedepot does not know about yet.
+          foreach ($node->field_filedepot_file as $file) {
+            // The $file['realname'] element is added in the filedepot class when saving a new file before calling the node_save API.
+            if (!in_array($file['fid'], $depotfiles) AND file_exists($file['filepath']) AND isset($file['realname'])) {
+              $file['realpath'] = realpath($file['filepath']);
+              // If within the private path, ignore the file
+              if (strpos($file['realpath'], $filedepot_private_directory_path) !== 0) {
+                if ($file['moderated'] AND !empty($file['moderated_tmpname'])) {
+                  $file['dest'] = rtrim($filedepot_private_directory_path, '\\/') .'/submissions/'. $file['moderated_tmpname'];
+                }
+                elseif ($file['incoming'] AND !empty($file['incoming_tmpname'])) {
+                  $file['dest'] = rtrim($filedepot_private_directory_path, '\\/') .'/'. $file['realname'];
+                }
+                else {
+                  $file['dest'] = rtrim($filedepot_private_directory_path, '\\/') .'/'. $file['realname'];
+                }
+                $newfiles[$file['fid']] = $file;
+              }
+            }
+            elseif (is_array($file) AND file_exists($file['filepath'])) {
+              /* file['realname'] would only be set for new files (attachments) being added to the node_save ('update')
+              * Someone is editing the folder and or files via the drupal interface
+              * Need to process as the file description may have changed
+              */
+
+              $file['realname'] = $file['filename'];  // User is attaching file to folder node via the Drupal UI
+              // Check for allowable file type.
+              if (!$filedepot->checkFilter($file['filename'], $file['filemime'])) {
+                // Error - TODO Find a better way
+                $delete = file_delete($file['filepath']);
+                db_query("DELETE FROM {files} WHERE filepath = '%s'", $file['filepath']);
+                $message = t('The file %name could not be uploaded. Mimetype %mimetype or extension not permitted.', array('%name' => $file['filename'], '%mimetype' => $file['filemime']));
+                drupal_set_message($message, 'error');
+                watchdog('filedepot', 'The file %name could not be uploaded. Mimetype %mimetype or extension not permitted.', array('%name' => $file['filename'], '%mimetype' => $file['filemime']));
+                break;
+                //return TRUE;
+              }
+
+              $unapprovedfile = FALSE;
+              $filedepot_fid = db_result(db_query("SELECT fid FROM {filedepot_files} WHERE cckfid=%d", $file['fid']));
+              if ($filedepot_fid === FALSE) {  // If not, check if there is a record in the submissions table that has just not been approved
+                $id = db_result(db_query("SELECT id FROM {filedepot_filesubmissions} WHERE cckfid=%d", $file['fid']));
+                if ($id > 0) $unapprovedfile = TRUE; // Found a record for this file in the submission queue
+              }
+              if ($unapprovedfile === FALSE AND $filedepot_fid === FALSE AND is_array($file)) {
+                // A new file was attached via the Drupal UI or external API - need to process
+                $file['dest'] = rtrim($filedepot_private_directory_path, '\\/') .'/'. $file['filename'];
+                $newfiles[$file['fid']] = $file;
+
+                $ext = end(explode(".", $file['filename']));
+                // Create filedepot record for file and set status of file to 1 - online
+                $sql = "INSERT INTO {filedepot_files} (cid,fname,title,description,version,cckfid,size,mimetype,extension,submitter,status,date) "
+                . "VALUES (%d,'%s','%s','%s',1,%d,%d,'%s','%s',%d,1,%d)";
+                db_query($sql, $cid, $file['filename'], $file['filename'], $file['data']['description'], $file['fid'], $file['filesize'], $file['filemime'], $ext, $user->uid, time() );
+
+                // Get fileid for the new file record
+                $args = array($cid, $user->uid);
+                $fid = db_result(db_query_range("SELECT fid FROM {filedepot_files} WHERE cid=%d AND submitter=%d ORDER BY fid DESC", $args, 0, 1));
+                $newfiles[$file['fid']]['nexfid'] = $fid;
+
+                db_query("INSERT INTO {filedepot_fileversions} (fid,fname,version,notes,size,date,uid,status)
+                VALUES (%d,'%s','1','',%d,%d,%d,1)", $fid, $file['filename'], $file['filesize'], time(), $user->uid);
+
+                // Update related folders last_modified_date
+                $workspaceParentFolder = filedepot_getTopLevelParent($cid);
+                filedepot_updateFolderLastModified($workspaceParentFolder);
+
+              }
+            }
+          }
+        }
+
+        foreach ($newfiles as $file) {
+          $conf['file_directory_path'] = $filedepot_private_directory_path;
+          $src = $file['filepath'];
+          // After a successful file_move, $src will be the set to the new filename including path
+          // In case of a duplicate file in the destination directory,
+          // the variable $src will be updated with the resulting appended incremental number
+          // Refer to the drupal file_move API
+          if (file_move($src, $file['dest'], FILE_EXISTS_RENAME)) {
+            // update db with the filename and full name including directory after the successful move
+            db_query("UPDATE {files} SET filename = '%s', filepath = '%s' WHERE fid = %d", basename($src), $src, $file['fid']);
+            // Only need to do this if file is being added from the Drupal UI
+            if (isset($file['nexfid']) AND $file['nexfid'] > 0) {
+              db_query("UPDATE {filedepot_files} SET fname = '%s'  WHERE fid = %d", basename($src), $file['nexfid']);
+            }
+          }
+          else {
+            // Error - TODO Find a better way
+            $delete = file_delete($file['filepath']);
+            db_query("DELETE FROM {files} WHERE filepath = '%s'", $file['filepath']);
+            if ($delete) {
+              drupal_set_message(t('Error moving the file from the public to private file directories. The file was deleted as a pre-caution from the public error. The node file details should be updated by removing the file reference.'), 'error');
+            }
+            else {
+              drupal_set_message(t('Error moving the file from the public to private file directories. This file could not be deleted from the public file area and should be removed manually. Please report this to your system administrator. Filepath: "%filepath".', array('%filepath' => $file['filepath'])), 'error');
+            }
+          }
+          $conf['file_directory_path'] = $system_directory_path;
+        }
+      }
+    }
+  }  // $op == 'insert'
+
+  elseif ($op == 'delete') {  // Called when folder node is deleted
+    $filedepot->deleteFolder($node->nid);
+  }
+
 }
 

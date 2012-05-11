@@ -3,6 +3,8 @@
  * @file nexpro.js
  * Common Javascript functions we use in our Nextide applications
  */
+
+
 function hideElement(elm) {
 
     var obj=document.getElementById(elm);

@@ -1,0 +1,28 @@
+diff --git a/filedepot.module b/filedepot.module
+index 6cc13a2..d60273e 100644
+--- a/filedepot.module
++++ b/filedepot.module
+@@ -374,15 +374,20 @@ function filedepot_user_access($perm) {
+   if (isset($_POST['cookie_session']) AND !empty($_POST['cookie_session'])) {
+ 
+     /* Code added to handle the issue with the default $_COOKIE array being sent by the Flash Image uploader
+-    * We can send the cookies in the post form data and then extract and rebuild the user object
+-    */
++     * We can send the cookies in the post form data and then extract and rebuild the user object
++     */
+ 
+     // Check if the session is still active, we have a record of the client's session in the database.
+     $user = db_fetch_object(db_query("SELECT u.*, s.* FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.sid = '%s'", $_POST['cookie_session']));
+ 
+     // We found the client's session record and they are an authenticated user
+     if ($user && $user->uid > 0) {
+-      // This is done to unserialize the data member of $user and restore their session
++      // The user_load function was over-writing the SESSION record and allowing IE to hijack the session
++      // Issue was only seen when uploading files with FF and using IE on the same desktop
++      // Adding the session_save_session(FALSE) skips the updating of the session table
++      session_save_session(FALSE);
++
++      // Reload the user object - this is done to unserialize the data member of $user and restore their session
+       $user = user_load($user->uid);
+     }
+   }

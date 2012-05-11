@@ -7,6 +7,16 @@
  YAHOO.namespace("filedepot");
  YAHOO.namespace("container");
 
+function filedepotPleaseWait(mode) {
+  if (blockui || mode == 'hide')  {
+    setTimeout('jQuery.unblockUI()',200);
+    blockui = false;
+  } else if (mode == 'show') {
+    blockui=true;
+    jQuery.blockUI(blockui_options);
+  }
+}
+
 function closeAlert() {
   Dom.setStyle('cancelalert', 'display', 'none'); // Hide the cancel icon
   // Note: Key to this working is having the div's overflow:auto set
@@ -978,10 +988,7 @@ function makeAJAXUpdateFolderPerms(formObject) {
 
 
 function makeAJAXUpdateFolderDetails(formObject) {
-  if (!blockui)  {
-    blockui=true;
-    jQuery.blockUI();
-  }
+  filedepotPleaseWait('show');
   var surl = ajax_post_handler_url + '/updatefolder';
   var callback = {
     success: function(o) {
@@ -1210,10 +1217,7 @@ function makeAJAXToggleFavorite(id) {
 
 
 function makeAJAXGetFolderListing(cid) {
-  if (!blockui)  {
-    blockui=true;
-    jQuery.blockUI();
-  }
+  filedepotPleaseWait('show');
   timeDiff.setStartTime(); // Reset the timer
   document.frmtoolbar.newcid.value = cid;
   var surl = ajax_post_handler_url + '/getfolderlisting';
@@ -1240,10 +1244,7 @@ function makeAJAXGetFolderListing(cid) {
         //YAHOO.log('getFolderlisiting Updated page completed in: ' + timeDiff.getDiff() + 'ms');
         updateAjaxStatus(NEXLANG_refreshmsg + timeDiff.getDiff() + 'ms');
         timer = setTimeout("Dom.setStyle('filedepot_ajaxStatus','visibility','hidden')", 3000);
-        if (blockui)  {
-          setTimeout('jQuery.unblockUI()',200);
-          blockui = false;
-        }
+        filedepotPleaseWait('hide');
         try {
           if (oResults.lastrenderedfiles) {
             //YAHOO.log('makeAJAXGetFolderListing: initiate getmorefiledata:' + timeDiff.getDiff() + 'ms');
@@ -1439,10 +1440,7 @@ function moveIncomingFile() {
 function makeAJAXSearch(form) {
   if (document.fsearch.query.value == '' || document.fsearch.query.value == searchprompt) return;
   clearAjaxActivity();
-  if (!blockui)  {
-    blockui=true;
-    jQuery.blockUI();
-  }
+  filedepotPleaseWait('show');
   timeDiff.setStartTime();    // Reset Timer
   Dom.setStyle('showactivetags','display','none');
   YAHOO.container.tagspanel.hide();
@@ -1452,10 +1450,7 @@ function makeAJAXSearch(form) {
     success: function(o) {
       var json = o.responseText.substring(o.responseText.indexOf('{'), o.responseText.lastIndexOf('}') + 1);
       var oResults = eval('(' + json + ')');
-      if (blockui)  {
-        setTimeout('jQuery.unblockUI()',200);
-        blockui = false;
-      }
+      filedepotPleaseWait('hide');
       if (oResults.retcode == 200) {
         Dom.get('activefolder_container').innerHTML = oResults.activefolder;
         Dom.get('filelistingheader').innerHTML = oResults.header;
@@ -2077,8 +2072,10 @@ function toggleCheckedNotificationItems(obj) {
 
 // Two Functions used to initialize panels and forms for Add New File 'upload' and Add new Version 'edit'
 function showAddFilePanel() {
+  if (document.frmtoolbar.cid.value > 0) {
+    activefolder = document.frmtoolbar.cid.value;
+  }
   closeAlert();
-  var activefolder = document.frmtoolbar.cid.value;
   Dom.setStyle('newfiledialog_folderrow', 'display', '');
   Dom.setStyle('newfiledialog_filedesc', 'display', '');
   Dom.setStyle('newfiledialog_filename', 'display', '');
@@ -2178,6 +2175,7 @@ function renderLeftNavigation(oResults) {
   if((oResults.reports) && (oResults.reports.length)) {
     //Result is an array if more than one result, string otherwise
     if(YAHOO.lang.isArray(oResults.reports)) {
+      // Note: Set last parm to FALSE if you don't want the folder (textnode) to be rendered expanded
       var reportlinks = new YAHOO.widget.TextNode(NEXLANG_intelfolder1, root, true);
       reportlinks.labelStyle = "icon-files";
       for (var i=0; i<oResults.reports.length; i++) {
@@ -2191,6 +2189,7 @@ function renderLeftNavigation(oResults) {
   if((oResults.recentfolders) && (oResults.recentfolders.length)) {
     //Result is an array if more than one result, string otherwise
     if(YAHOO.lang.isArray(oResults.recentfolders)) {
+      // Note: Set last parm to FALSE if you don't want the folder (textnode) to be rendered expanded
       var recentfolders = new YAHOO.widget.TextNode(NEXLANG_intelfolder2, root, true);
       recentfolders.labelStyle = "icon-allfolders";
       for (var i=0; i<oResults.recentfolders.length; i++) {
@@ -2205,6 +2204,7 @@ function renderLeftNavigation(oResults) {
   if((oResults.topfolders) && (oResults.topfolders.length)) {
     //Result is an array if more than one result, string otherwise
     if(YAHOO.lang.isArray(oResults.topfolders)) {
+      // Note: Set last parm to FALSE if you don't want the folder (textnode) to be rendered expanded  
       var topfolders = new YAHOO.widget.TextNode(NEXLANG_intelfolder3, root, true);
       topfolders.labelStyle = "icon-allfolders";
       for (var i=0; i<oResults.topfolders.length; i++) {
@@ -2362,10 +2362,7 @@ YAHOO.filedepot.getmorefiledataRequest = function(cid,fid,foldernumber,level) {
 
 /* Initiated from an event handler in initapplication.js */
 YAHOO.filedepot.getmorefolderdataRequest = function(cid,fid,foldernumber,level,pass2) {
-  if (!blockui)  {
-    blockui=true;
-    jQuery.blockUI();
-  }
+  filedepotPleaseWait('show');
   timeDiff.setStartTime(); // Reset the timer
   //YAHOO.log('getmorefolderdata: start AJAX call:' + timeDiff.getDiff() + 'ms');
   var surl = ajax_post_handler_url + '/getmorefolderdata';
@@ -2390,10 +2387,7 @@ YAHOO.filedepot.getmorefolderdataRequest = function(cid,fid,foldernumber,level,p
       }
       Dom.setStyle('filedepot_ajaxActivity','visibility','hidden');
       timer = setTimeout("Dom.setStyle('filedepot_ajaxStatus','visibility','hidden')", 3000);
-      if (blockui)  {
-        setTimeout('jQuery.unblockUI()',200);
-        blockui = false;
-      }
+      filedepotPleaseWait('hide');
       YAHOO.filedepot.alternateRows.init('listing_record');
     },
     failure: function(o) {
@@ -2412,10 +2406,7 @@ YAHOO.filedepot.getmorefolderdataRequest = function(cid,fid,foldernumber,level,p
 YAHOO.filedepot.showfiles = function(cid) {
   //YAHOO.log('showfiles: start AJAX call:' + timeDiff.getDiff() + 'ms');
   clearAjaxActivity();
-  if (!blockui)  {
-    blockui=true;
-    jQuery.blockUI();
-  }
+  filedepotPleaseWait('show');
   timeDiff.setStartTime(); // Reset the timer
   if (cid == undefined && document.frmtoolbar.cid.value > 0) {
     var cid = document.frmtoolbar.cid.value;
@@ -2429,13 +2420,13 @@ YAHOO.filedepot.showfiles = function(cid) {
   document.fsearch.query.value = searchprompt;
   YAHOO.container.tagspanel.hide();
   Dom.setStyle('showactivetags','display','none');
+
   var listingcallback = {
     success: function(o) {
       //YAHOO.log('showfiles: return from AJAX call:' + timeDiff.getDiff() + 'ms');
       var json = o.responseText.substring(o.responseText.indexOf('{'), o.responseText.lastIndexOf('}') + 1);
       var oResults = eval('(' + json + ')');
       if (oResults.retcode == 200) {
-
         Dom.setStyle('activefolder_container','display','');
         Dom.setStyle('filelistingheader','display','');
         document.frmtoolbar.cid.value = oResults.cid;
@@ -2496,15 +2487,13 @@ YAHOO.filedepot.showfiles = function(cid) {
       Dom.setStyle('filedepot_ajaxActivity','visibility','hidden');
       timer = setTimeout("Dom.setStyle('filedepot_ajaxStatus','visibility','hidden')", 5000);
       if (blockui)  {
-        jQuery.unblockUI();
-        blockui = false;
+        filedepotPleaseWait('hide');
         if (initialfid > 0) {
           setTimeout('makeAJAXLoadFileDetails(' + initialfid + ')',500);
           initialfid = 0;
         } else if (initialop == 'newprojectfile' && initialparm > 0) {
           setTimeout('showAddFilePanel()',500);
         }
-
       }
 
       // Expand any individual folders user had opened
@@ -2654,10 +2643,7 @@ YAHOO.filedepot.decorateFileListing = function() {
   Dom.setStyle('filedepot_ajaxActivity','visibility','hidden');
   timer = setTimeout("Dom.setStyle('filedepot_ajaxStatus','visibility','hidden')", 5000);
 
-  if (blockui)  {
-    setTimeout('jQuery.unblockUI()',200);
-    blockui = false;
-  }
+  filedepotPleaseWait('hide');
 
 }
 

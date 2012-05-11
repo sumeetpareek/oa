@@ -107,7 +107,8 @@ function filedepot_dispatcher($action) {
       'title' => $_POST['catname'],
       'parentfolder' => intval($_POST['catparent']),
       'folderdesc'  => $_POST['catdesc'],
-      'inherit'     => intval($_POST['catinherit'])
+      'inherit'     => intval($_POST['catinherit']),
+      'group_nid'   => 0
       );
 
       if ($node->parentfolder == 0 AND !user_access('administer filedepot')) {

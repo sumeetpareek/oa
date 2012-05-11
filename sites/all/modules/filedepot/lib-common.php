@@ -83,10 +83,21 @@ function filedepot_recursiveAccessArray($perms, $id=0, $level=1) {
 function filedepot_recursiveAccessOptions($perms, $selected='', $id='0', $level='1', $addRootOpt=TRUE) {
   $filedepot = filedepot_filedepot();
   $selectlist = '';
-  if ($addRootOpt AND $level == 1 AND user_access('administer filedepot')) {
-    $selectlist = '<option value="0">' . t('Top Level Folder') . '</option>' . LB;
+
+  $sql = "SELECT cid,pid,name FROM {filedepot_categories} WHERE pid=%d ORDER BY cid";
+  if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+    if ($id == 0) {
+      $id = $filedepot->ogrootfolder;
+    }
+    if ($addRootOpt AND $level == 1 AND user_access('administer filedepot')) {
+      $selectlist = '<option value="'.$filedepot->ogrootfolder.'">' . t('Top Level Folder') . '</option>' . LB;
+    }
+  } else {
+    if ($addRootOpt AND $level == 1 AND user_access('administer filedepot')) {
+      $selectlist = '<option value="0">' . t('Top Level Folder') . '</option>' . LB;
+    }
   }
-  $query = db_query("SELECT cid,pid,name FROM {filedepot_categories} WHERE pid=%d ORDER BY cid", $id);
+  $query = db_query($sql,$id);
   while ($A = db_fetch_array($query)) {
     list($cid, $pid, $name) = array_values($A);
     $name = filter_xss($name);
@@ -483,7 +494,7 @@ function filedepot_sendNotification($id, $type=1) {
           $lastuser = $target_uid;
         }
       }
-      if (count($distribtion >= 1)) {
+      if (count($distribution >= 1)) {
         $message['to'] = 'Filedepot Distribution';
         $message['headers']['Bcc'] = implode(',', $distribution);
         drupal_mail_send($message);

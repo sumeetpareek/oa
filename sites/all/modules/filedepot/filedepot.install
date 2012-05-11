@@ -64,24 +64,32 @@ function filedepot_uninstall() {
 
   drupal_uninstall_schema('filedepot');
 
-  variable_del('filedepot_content_type_initialized');
+  variable_del('filedepot_storage_path');
+  variable_del('filedepot_yui_baseurl');
   variable_del('filedepot_allow_folder_duplicates');
+  variable_del('filedepot_pass1_recordcount');
+  variable_del('filedepot_pass2_recordcount');
+  variable_del('filedepot_notifications_enabled');
   variable_del('filedepot_default_allow_broadcasts');
   variable_del('filedepot_default_notify_filechange');
   variable_del('filedepot_default_notify_newfile');
-  variable_del('filedepot_notifications_enabled');
-  variable_del('filedepot_pass1_recordcount');
-  variable_del('filedepot_pass2_recordcount');
-  variable_del('filedepot_storage_path');
-  variable_del('filedepot_yui_baseurl');
+  variable_del('auto_create_group_rootfolder_enabled');
+  variable_del('organic_group_mode_enabled');
+  variable_del('filedepot_locked_file_download_enabled');
+  variable_del('filedepot_show_index_enabled');
+
   variable_del('filedepot_filter_mode');
   variable_del('filedepot_filetype_filter');
   variable_del('filedepot_filetype_filterdata');
   variable_del('filedepot_default_owner');
   variable_del('filedepot_default_perms_data');
   variable_del('filedepot_default_roles');
+  variable_del('filedepot_default_group');
   variable_del('filedepot_extensions');
   variable_del('filedepot_extension_data');
+
+  variable_del('filedepot_content_type_initialized');
+  variable_del('filedepot_allow_folder_duplicates');
 
 }
 
@@ -103,6 +111,12 @@ $schema['filedepot_categories'] = array(
       'description' => t('TODO: please describe this field!'),
       'type' => 'int',
       'size' => 'medium',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'group_nid' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'int',
       'not null' => TRUE,
       'default' => 0,
     ),
@@ -1103,3 +1117,16 @@ function filedepot_update_6002() {
 }
 
 
+/**
+ * Implementation of hook_update_N().
+ * 6.x-1.3 - After adding support for OG - needed to change the tag class to allow perms/metrics assigned by groups
+ * Add the group_nid field to track the OG Group associated with the filedepot folder
+ * if the folder is a top level ROOT folder for a group
+ * Set if filedepot is in OG mode and new group is created
+ */
+function filedepot_update_6301() {
+  $ret = array();
+  $ret[] = update_sql('ALTER TABLE {filedepot_categories} ADD COLUMN group_nid INT UNSIGNED NOT NULL DEFAULT 0 AFTER nid');
+  db_add_index($ret, 'filedepot_categories', 'group_nid', array('group_nid'));
+  return $ret;
+}

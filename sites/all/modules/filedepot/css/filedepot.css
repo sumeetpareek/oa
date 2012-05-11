@@ -2,9 +2,6 @@
 
 body.layout-left-main .outer { margin-left:0px !important; }
 
-/* layout fix needed when using filedepot with OA - http://icarda2.benale.net/content/filedepot-adding-document-repository-feature-open-atrium */
-#content { width:99% !important; }
-
 /* Filedepot CSS */
 
 #filedepot {
@@ -310,6 +307,15 @@ body.layout-left-main .outer { margin-left:0px !important; }
     text-decoration:none;
 }
 
+a.morefolderdata {
+    color: #666;
+    text-decoration:none;
+}
+a.morefolderdata:hover {
+    color: #000;
+    text-decoration:underline;
+}
+
 #filelisting_container {
     padding-bottom:20px;
 }
@@ -361,19 +367,56 @@ body.layout-left-main .outer { margin-left:0px !important; }
     padding:5px;
 }
 
-a.morefolderdata {
-    color: #666;
-    text-decoration:none;
-}
-a.morefolderdata:hover {
-    color: #000;
-    text-decoration:underline;
-}
-
 .listing_record div.tags {
     padding-bottom:2px;
     float:left;
 }
+
+.listing_record_outer_container {
+  padding-right:0px;
+}
+.listing_record_attributes {
+  float:left;
+}
+.listing_record_selectbox {
+  float:left;
+}
+.listing_record_favorite {
+  float:left;
+}
+.listing_record_file_image {
+  float:left;
+  padding-right:5px
+}
+.listing_record_file_number {
+  float:left;
+  padding-left:5px;
+  padding-right:5px;
+  color:#666;
+}
+.listing_record_lock {
+  float:left;
+  padding-left:5px;
+}
+.listing_record_rightside_container {
+  float:right;
+}
+.listing_record_actions_container {
+  float:right;
+}
+.listing_record_modified_date {
+  float:right;
+  padding-right:40px;
+}
+.listing_record_submitter {
+  float:right;
+  padding-right:40px;
+}
+.listing_record_foldername {
+  float:right;
+  padding-right:20px;
+}
+
 
 .filedesc div.tags span {
     padding-left:5px;
@@ -526,6 +569,7 @@ a.morefolderdata:hover {
 }
 
 a.cancelbutton:hover {
+    width:100%;
     background-position: 0px 0px;
 }
 
@@ -684,18 +728,6 @@ a.cancelbutton:hover {
     width:100%;
 }
 
-/* YUI File details panel - close button was appearing as a un-styled link
-   after force loading the container and menu.css at the top of this file
-*/
-.yui-skin-sam .container-close {
-  background:url("http://yui.yahooapis.com/2.7.0/build/assets/skins/sam/sprite.png") no-repeat scroll 0 -300px transparent !important;
-  cursor:pointer;
-  height:18px !important;
-  position:absolute;
-  right:5px;
-  top:5px;
-  width:25px !important;
-}
 
 .yui-skin-sam .yuimenubaritemlabel { border: 0px !important; font-size:85%;}
 

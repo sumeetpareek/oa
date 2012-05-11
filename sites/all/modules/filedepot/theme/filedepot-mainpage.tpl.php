@@ -14,35 +14,38 @@
 
 
 <script type="text/javascript">
-  var useYuiLoader = true;         // Set to false if you have manually loaded all the needed YUI libraries else they will dynamically be loaded
-  var pagewidth = 0;               // Integer value: Use 0 for 100% width with auto-resizing of layout, or a fixed width in pixels
-                                   // Height of main display is set by the height of #filedepot div - default set in CSS
-  var numGetFileThreads = 5;       // Max number of concurrent AJAX threads to spawn in the background to retrieve & render record details for subfolders
-  var useModalDialogs = true;      // Default of true is preferred but there is an IE7 bug that makes them un-useable so in this case set to false
+  var useYuiLoader = true;              // Set to false if you have manually loaded all the needed YUI libraries else they will dynamically be loaded
+  var pagewidth = 0;                    // Integer value: Use 0 for 100% width with auto-resizing of layout, or a fixed width in pixels
+                                        // Height of main display is set by the height of #filedepot div - default set in CSS
+  var numGetFileThreads = 5;            // Max number of concurrent AJAX threads to spawn in the background to retrieve & render record details for subfolders
+  var useModalDialogs = true;           // Default of true is preferred but there is an IE7 bug that makes them un-useable so in this case set to false
 
   // Do not modify any variables below
   var filedepotfolders = '';
   var filedepotdetail = '';
   var folderstack = new Array;  // will contain list of folders being processed by AJAX YAHOO.filedepot.getmorefiledata function
   var fileID;
-  var initialfid = <?php print $initialfid ?>;
-  var initialcid = <?php print $initialcid ?>;
-  var initialop = '<?php print $initialop ?>';
-  var initialparm = '<?php print $initialparm ?>';
-  var siteurl = '<?php print $site_url ?>';
-  var ajax_post_handler_url = '<?php print $ajax_server_url ?>';
-  var actionurl_dir = '<?php print $actionurl_dir ?>';
-  var imgset = '<?php print $layout_url ?>/css/images';
+  var initialfid = <?php print $initialfid; ?>;
+  var initialcid = <?php print $initialcid; ?>;
+  var activefolder = <?php print $initialcid; ?>;
+  var initialop = '<?php print $initialop; ?>';
+  var initialparm = '<?php print $initialparm; ?>';
+  var siteurl = '<?php print $site_url; ?>';
+  var ajax_post_handler_url = '<?php print $ajax_server_url; ?>';
+  var actionurl_dir = '<?php print $actionurl_dir; ?>';
+  var imgset = '<?php print $layout_url; ?>/css/images';
   var yui_uploader_url = '<?php print $yui_uploader_url; ?>';
   var ajaxactive = false;
   var clear_ajaxactivity = false;
-  var blockui = false;
   var timerArray = new Array();
   var lastfiledata = new Array();
   var expandedfolders = new Array();
-  var searchprompt = '<?php print $LANG_searchprompt ?>';
-  var show_upload = <?php print $show_upload ?>;
-  var show_newfolder = <?php print $show_newfolder ?>;
+  var searchprompt = '<?php print $LANG_searchprompt; ?>';
+  var show_upload = <?php print $show_upload; ?>;
+  var show_newfolder = <?php print $show_newfolder; ?>;
+  var blockui = false;
+  var blockui_options = { message: '<h1><?php print t('Please wait ...'); ?></h1>' };
+
 </script>
 
 <script type="text/javascript">
@@ -50,12 +53,11 @@
 </script>
 
 <script type="text/javascript">
-   jQuery.blockUI();
    if (useYuiLoader == true) {
     // Instantiate and configure Loader:
     var loader = new YAHOO.util.YUILoader({
 
-      base: YUIBaseURL + '/',
+      base: YUIBaseURL,
       // Identify the components you want to load.  Loader will automatically identify
       // any additional dependencies required for the specified components.
       require: ["container","layout","resize","connection","dragdrop","menu","button","tabview","autocomplete","treeview","element","cookie","uploader","logger","animation"],
@@ -66,8 +68,7 @@
 
       // The function to call when all script/css resources have been loaded
       onSuccess: function() {
-        blockui=true;
-        //jQuery.blockUI();
+        filedepotPleaseWait('show')
         timeDiff.setStartTime();
         Dom = YAHOO.util.Dom;
         Event = YAHOO.util.Event;
@@ -94,8 +95,7 @@
     loader.insert();
 
   } else {
-    blockui=true;
-    jQuery.blockUI();
+    filedepotPleaseWait('hide')
     timeDiff.setStartTime();
     Dom = YAHOO.util.Dom;
     Event = YAHOO.util.Event;

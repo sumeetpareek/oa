@@ -27,7 +27,7 @@ function filedepot_admin_settings() {
   '#type' => 'textfield',
   '#title'  => t('Base URL to load YUI Javascript Libraries'),
   '#description'  => t('Valid URL to load libraries - can be a local location or hosted CDN like Yahoo and Google.<br />Site URL needs to end in a /'),
-  '#default_value'  => variable_get('filedepot_yui_baseurl', 'http://yui.yahooapis.com/2.7.0/build/'),
+  '#default_value'  => variable_get('filedepot_yui_baseurl', 'http://yui.yahooapis.com/combo?2.7.0/build/'),
   '#size' => 60
   );
 
@@ -90,6 +90,25 @@ function filedepot_admin_settings() {
   '#title' => t('File Changes'),
   '#default_value' => variable_get('filedepot_default_notify_filechange', 0),
   '#description' => t('If enabled, users with view access to a folder will be notified of new file versions being added.'));
+
+  if (module_exists('og') AND module_exists('og_access')) {
+    $form['og_options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Organic Group Options'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE
+    );
+
+    $form['og_options']['auto_create_group_rootfolder_enabled'] = array('#type' => 'checkbox',
+    '#title' => t('Automatically Create Root Level Folder for New Organic Groups'),
+    '#default_value' => variable_get('auto_create_group_rootfolder_enabled', 0),
+    '#description' => t('If enabled, a new top level ROOT folder will be created for the organic group.'));
+
+    $form['og_options']['organic_group_mode_enabled'] = array('#type' => 'checkbox',
+    '#title' => t('Only Display Organic Group Root Level Folder'),
+    '#default_value' => variable_get('organic_group_mode_enabled', 0),
+    '#description' => t('If enabled and the group context is set then only folders under the Group Root level folder will be displayed.'));
+  }
 
   $form['options'] = array(
   '#type' => 'fieldset',
@@ -202,6 +221,18 @@ function filedepot_admin_settings() {
   t('When a site member creates a new folder, list the default user based permissions the folder should be setup with.'),
   '#wysiwyg' => FALSE,
   );
+  if (module_exists('og') AND module_exists('og_access')) {
+    $form['permissions']['filedepot_default_group'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Default OG Permissions'),
+    '#cols' => 60,
+    '#rows' => 1,
+    '#default_value' => variable_get('filedepot_default_group', 'view, upload_dir'),
+    '#description' =>
+    t('When a new group is created and OG mode is enabled, list the default user based permissions the folder should be setup with.'),
+    '#wysiwyg' => FALSE,
+    );
+  }
 
   $form['permissions']['filedepot_default_roles'] = array(
   '#type' => 'textarea',
@@ -264,6 +295,19 @@ function filedepot_admin_settings_validate($form, $form_state) {
     }
   }
   $defaultperms['owner'] = $cleanperms;
+
+  $cleanperms = array();
+  if (module_exists('og') AND module_exists('og_access')) {
+    $groupperms = $form_state['values']['filedepot_default_group'];
+    $aperms = explode(',', $groupperms);
+    foreach ($aperms as $perm) {
+      $perm = trim($perm);
+      if (in_array($perm, $validperms)) {
+        $cleanperms[] = $perm;
+      }
+    }
+  }
+  $defaultperms['group'] = $cleanperms;
 
   $rawroleperms = $form_state['values']['filedepot_default_roles'];
   $permlines = preg_split( '/\r\n|\r|\n/', $rawroleperms );

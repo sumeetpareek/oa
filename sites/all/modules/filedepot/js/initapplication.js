@@ -72,7 +72,6 @@ var init_filedepot = function() {
     document.getElementById('btnNewFileSubmit').disabled=true;
     if (show_upload) Dom.setStyle('newfilelink','display','');
   } catch(e) {
-    //alert(e.message);
     alert('failed to load uploader');
   }
 

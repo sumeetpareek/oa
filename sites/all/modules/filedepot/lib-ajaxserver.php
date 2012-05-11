@@ -159,7 +159,13 @@ function filedepotAjaxServer_generateLeftSideNavigation($data='') {
   // Setup the Most Recent folders for this user
   if (user_is_logged_in()) {
     $sql  = "SELECT a.id,a.cid,b.name FROM {filedepot_recentfolders} a ";
-    $sql .= "LEFT JOIN {filedepot_categories} b ON b.cid=a.cid WHERE uid=%d ORDER BY id";
+    $sql .= "LEFT JOIN {filedepot_categories} b ON b.cid=a.cid ";
+    if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+      $sql .= "WHERE a.cid in ({$filedepot->allowableGroupViewFoldersSql}) AND a.cid != {$filedepot->ogrootfolder} AND b.pid != {$filedepot->ogrootfolder} ";
+    } else {
+      $sql .= "WHERE 1=1 ";
+    }
+    $sql .= "AND uid=%d ORDER BY id";
     $res = db_query($sql, $user->uid);
     while ($A = db_fetch_array($res)) {
       $data['recentfolders'][] = array(
@@ -170,7 +176,13 @@ function filedepotAjaxServer_generateLeftSideNavigation($data='') {
 
   }
 
-  $res = db_query("SELECT cid,pid,name,description from {filedepot_categories} WHERE pid='0' ORDER BY folderorder");
+  $sql = "SELECT cid,pid,name,description from {filedepot_categories} ";
+  if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+    $sql .= "WHERE pid={$filedepot->ogrootfolder} ORDER BY folderorder";
+  } else {
+    $sql .= "WHERE pid=0 ORDER BY folderorder";
+  }
+  $res = db_query($sql);
   while ($A = db_fetch_array($res)) {
     if ($filedepot->checkPermission($A['cid'], 'view')) {
       $data['topfolders'][] = array(
@@ -331,13 +343,15 @@ function filedepot_displaySearchListing($query) {
   $sql .= 'FROM {filedepot_files} file ';
   $sql .= 'LEFT JOIN {filedepot_categories} category ON file.cid=category.cid ';
   $sql .= 'WHERE 1=1 ';
-  if (!empty($filedepot->allowableViewFoldersSql)) {
-    $sql .= 'AND file.cid in (%s) ';
+  if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+    $sql .= "AND file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
+  } elseif (!empty($filedepot->allowableViewFoldersSql)) {
+    $sql .= "AND file.cid in ({$filedepot->allowableViewFoldersSql}) ";
   }
   $sql .= 'AND (file.title LIKE "%%%s%%%" OR file.title LIKE "%%%s%%%" OR file.description LIKE "%%%s%%%" OR file.description LIKE "%%%s%%%") ';
   $sql .= 'ORDER BY file.date DESC ';
 
-  $search_query = db_query($sql, $filedepot->allowableViewFoldersSql, $query, $query, $query, $query);
+  $search_query = db_query($sql, $query, $query, $query, $query);
   $output = '';
   while ( $A = db_fetch_array($search_query)) {
     $output .= theme('filedepot_filelisting', $A);
@@ -354,9 +368,12 @@ function filedepot_displayTagSearchListing($query) {
   $sql .= "FROM {filedepot_files} file ";
   $sql .= "LEFT JOIN {filedepot_categories} category ON file.cid=category.cid ";
   $sql .= "WHERE 1=1 ";
-  if (!empty($filedepot->allowableViewFoldersSql)) {
-    $sql .= "AND file.cid in ($filedepot->allowableViewFoldersSql) ";
+  if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+    $sql .= "AND file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
+  } elseif (!empty($filedepot->allowableViewFoldersSql)) {
+    $sql .= "AND file.cid in ({$filedepot->allowableViewFoldersSql}) ";
   }
+
   $itemids = $nexcloud->search($query);
   if ($itemids !== FALSE) $itemids = implode(',', $itemids);
   if (!empty($itemids)) {
@@ -392,18 +409,27 @@ function filedepot_getFileListingSQL($cid) {
   $sql .= "FROM {filedepot_files} file ";
   $sql .= "LEFT JOIN {filedepot_categories} category ON file.cid=category.cid ";
   if ($filedepot->activeview == 'lockedfiles') {
-    $sql .= "WHERE file.status=2 AND status_changedby_uid={$user->uid} ORDER BY date DESC LIMIT {$filedepot->maxDefaultRecords}";
+    $sql .= "WHERE file.status=2 AND status_changedby_uid={$user->uid} ";
+    if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+        $sql .= "AND file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
+    }
+    $sql .= "ORDER BY date DESC LIMIT {$filedepot->maxDefaultRecords}";
   }
   elseif ($filedepot->activeview == 'downloads') {
     // Will return multiple records for same file as we capture download records each time a user downloads it
     $sql .= "LEFT JOIN {filedepot_downloads} downloads on downloads.fid=file.fid ";
     $sql .= "WHERE uid={$user->uid} ";
+    if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+        $sql .= "AND file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
+    }
     $sql .= "ORDER BY file.date DESC LIMIT {$filedepot->maxDefaultRecords}";
   }
   elseif ($filedepot->activeview == 'unread') {
     $sql .= "LEFT OUTER JOIN {filedepot_downloads} downloads on downloads.fid=file.fid ";
     $sql .= "WHERE downloads.fid IS NULL ";
-    if (empty($filedepot->allowableViewFoldersSql)) {
+    if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+        $sql .= "AND file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
+    } elseif (empty($filedepot->allowableViewFoldersSql)) {
       $sql .= "AND file.cid is NULL ";
     }
     else {
@@ -425,9 +451,16 @@ function filedepot_getFileListingSQL($cid) {
   elseif ($filedepot->activeview == 'flaggedfiles') {
     $sql .= "LEFT JOIN {filedepot_favorites} favorites on favorites.fid=file.fid ";
     $sql .= "WHERE uid={$user->uid} ";
+    if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+        $sql .= "AND file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
+    }
   }
   elseif ($filedepot->activeview == 'myfiles') {
-    $sql .= "WHERE file.submitter={$user->uid} ORDER BY date DESC LIMIT {$filedepot->maxDefaultRecords}";
+    $sql .= "WHERE file.submitter={$user->uid} ";
+    if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+        $sql .= "AND file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
+    }
+    $sql .= "ORDER BY date DESC LIMIT {$filedepot->maxDefaultRecords}";
   }
   elseif ($filedepot->activeview == 'approvals') {
     // Determine if this user has any submitted files that they can approve
@@ -442,6 +475,9 @@ function filedepot_getFileListingSQL($cid) {
       }
       else {
         $sql .= "WHERE file.cid in ($categories) ";
+      }
+      if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+        $sql .= "AND file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
       }
     }
     $sql .= "ORDER BY file.date DESC ";
@@ -493,7 +529,10 @@ function filedepot_getFileListingSQL($cid) {
 
   }
   else {
-    if (!user_access('administer filedepot', $user)) {
+    // Default view - latestfile
+    if ($filedepot->ogmode_enabled AND !empty($filedepot->allowableGroupViewFoldersSql)) {
+        $sql .= "WHERE file.cid in ({$filedepot->allowableGroupViewFoldersSql}) ";
+    } elseif (!user_access('administer filedepot', $user)) {
       if (empty($filedepot->allowableViewFoldersSql)) {
         $sql .= "WHERE file.cid is NULL ";
       }
@@ -893,7 +932,7 @@ function filedepotAjaxServer_deleteFile($fid) {
   elseif ($filedepot->deleteFile($fid)) {   /* Includes security tests that user can delete this file */
     if (!in_array($reportmode, $filedepot->validReportingModes))  $filedepot->ajaxBackgroundMode = TRUE;
     $retval['retcode'] = 200;
-    $message = '<div class="pluginInfo aligncenter" style="width:100%;height:60px;padding-top:30px;">';
+    $message = '<div class="pluginInfo aligncenter" style="height:60px;padding-top:30px;">';
     $message .= t('File was sucessfully deleted. This message will clear in a couple seconds');
     $message .= '</div>';
     $retval['displayhtml'] = filedepot_displayFolderListing($listing_folder);
