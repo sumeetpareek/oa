@@ -26,6 +26,8 @@
             <div class="listing_record_actions_container <?php print $actionclass?>">
                 <span><?php print $action1_link ?></span>
                 <span><?php print $action2_link ?></span>
+                <span><?php print $action3_link ?></span>
+                <span><?php print $action4_link ?></span>
                 <span style="display:<?php print $show_approvalsubmitter ?>;"><?php print $submitter ?></span>
             </div>
             <div class="listing_record_modified_date"><?php print $modified_date ?></div>

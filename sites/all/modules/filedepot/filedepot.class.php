@@ -34,7 +34,9 @@ class filedepot {
   'locked' => 'padlock.gif',
   'download' => 'download.png',
   'editfile' => 'editfile.png',
-  'upload' => 'upload.png'
+  'upload' => 'upload.png',
+  'mailto' => 'email-regular.gif', // mailto icon
+  'permalink' => 'permalink.gif' //permalink icon
   );
 
   public $defOwnerRights = array();

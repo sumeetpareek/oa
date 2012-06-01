@@ -188,6 +188,9 @@ function template_preprocess_filedepot_activefolder(&$variables) {
 
 
 function template_preprocess_filedepot_folderlisting(&$variables) {
+  global $user;
+  global $base_url;
+
   $filedepot = filedepot_filedepot();
   $rec = $variables['folderrec'];      // cid,pid,name,description,folderorder,last_modified_date
   $level = $variables['level'];
@@ -227,6 +230,27 @@ function template_preprocess_filedepot_folderlisting(&$variables) {
     $variables['onhover_move_options'] = '';
   }
   $variables['folder_padding_left'] = $level * $filedepot->listingpadding;
+
+  /**
+   * mailto folders actions
+   */
+  $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+  if ($filedepot->ogmode_enabled) {
+	  // A direct URL to a folder with cid N, when in OG mode, is http://SITE/GROUP/filedepot?cid=N
+	  $current_group = og_get_group_context();
+  	$mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot?cid={$rec['cid']}"; // To be directly used in mail body hence no call to l()  	
+  }
+  else {
+    // A direct URL to a folder with cid N, when NOT in OG mode, is http://SITE/filedepot?cid=N
+    $mail_to_body_link = $base_url ."/filedepot?cid={$rec['cid']}"; // To be directly used in mail body hence no call to l()
+  }
+ 
+  $variables['folder_mailto'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['name']}&body=$mail_to_body_link",
+    array('html' => TRUE, 'attributes' => array('title' => t('Mail this folder'))));
+
+  $permalink_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('permalink'));
+  $variables['folder_permalink'] = l($permalink_image, $mail_to_body_link,
+    array('html' => TRUE, 'attributes' => array('title' => t('Permalink'))));
 }
 
 function template_preprocess_filedepot_folder_moveoptions(&$variables) {
@@ -249,6 +273,7 @@ function template_preprocess_filedepot_folder_moveoptions(&$variables) {
 
 function template_preprocess_filedepot_filelisting(&$variables) {
   global $user;
+  global $base_url;
 
   $filedepot = filedepot_filedepot();
   $nexcloud = filedepot_nexcloud();
@@ -340,6 +365,21 @@ function template_preprocess_filedepot_filelisting(&$variables) {
         $downloadlinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('download'));
         $variables['action1_link'] =  l( $downloadlinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
           array('html' => TRUE, 'attributes' => array('title' => t('Download File'))));
+          
+			  /**
+			   * mailto file actions
+			   */
+			  $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+			  if ($filedepot->ogmode_enabled) {
+			    $current_group = og_get_group_context();
+			    $mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()   
+			  }
+			  else {
+			    $mail_to_body_link = $base_url ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()
+			  }
+        $variables['action3_link'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['title']}&body=$mail_to_body_link",
+          array('html' => TRUE, 'attributes' => array('title' => t('Mail this file'))));
+
         if ($user->uid > 0 AND $filedepot->checkPermission($rec['cid'], array('upload_dir'), $user->uid)) {
           $variables['actionclass'] = 'twoactions';
           $editlinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('editfile'));
@@ -355,6 +395,21 @@ function template_preprocess_filedepot_filelisting(&$variables) {
         $downloadlinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('download'));
         $variables['action1_link'] =  l( $downloadlinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
           array('html' => TRUE, 'attributes' => array('title' => t('Download File'))));
+
+        /**
+         * mailto file actions
+         */
+        $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+        if ($filedepot->ogmode_enabled) {
+          $current_group = og_get_group_context();
+          $mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()   
+        }
+        else {
+          $mail_to_body_link = $base_url ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()
+        }
+        $variables['action3_link'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['title']}&body=$mail_to_body_link",
+          array('html' => TRUE, 'attributes' => array('title' => t('Mail this file'))));
+
         $variables['action2_link'] = '';
         $variables['actionclass'] = 'oneaction';
       }
@@ -365,6 +420,21 @@ function template_preprocess_filedepot_filelisting(&$variables) {
         $downloadlinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('download'));
         $variables['action1_link'] =  l( $downloadlinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
           array('html' => TRUE, 'attributes' => array('title' => t('Download File'))));
+
+        /**
+         * mailto file actions
+         */
+        $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+        if ($filedepot->ogmode_enabled) {
+          $current_group = og_get_group_context();
+          $mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()   
+        }
+        else {
+          $mail_to_body_link = $base_url ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()
+        }
+        $variables['action3_link'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['title']}&body=$mail_to_body_link",
+          array('html' => TRUE, 'attributes' => array('title' => t('Mail this file'))));
+
         if ($user->uid > 0 AND $filedepot->checkPermission($rec['cid'], array('upload_dir'), $user->uid)) {
           $variables['actionclass'] = 'twoactions';
           $editlinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('editfile'));
@@ -380,6 +450,21 @@ function template_preprocess_filedepot_filelisting(&$variables) {
         $downloadlinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('download'));
         $variables['action1_link'] =  l( $downloadlinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
           array('html' => TRUE, 'attributes' => array('title' => t('Download File'))));
+
+        /**
+         * mailto file actions
+         */
+        $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+        if ($filedepot->ogmode_enabled) {
+          $current_group = og_get_group_context();
+          $mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()   
+        }
+        else {
+          $mail_to_body_link = $base_url ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()
+        }
+        $variables['action3_link'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['title']}&body=$mail_to_body_link",
+          array('html' => TRUE, 'attributes' => array('title' => t('Mail this file'))));
+
         $variables['action2_link'] = '';
         $variables['actionclass'] = 'oneaction';
       }

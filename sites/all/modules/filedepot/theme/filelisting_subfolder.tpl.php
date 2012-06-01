@@ -3,7 +3,7 @@
   * @file
   * filelisting_subfolder.tpl.php
   */
-?>  
+?>
 
 <div id="subfolder<?php print $folder_id ?>" class="subfolder listing_record parentfolder<?php print $parent_folder_id ?>">
   <div style="padding-right:20px;">
@@ -16,6 +16,10 @@
         <span class="folderlink"><a href="#" onClick="makeAJAXGetFolderListing(<?php print $folder_id ?>);return false;" TITLE="Folder id: <?php print $folder_id ?>  Parent:<?php print $parent_folder_id ?>"><?php print$folder_name ?></a></span>
       </div>
       <div class="floatright" style="padding-right:30px;width:125px;"><?php print $last_modified_date ?>&nbsp;</div>
+      <div class="listing_record_rightside_container_folder_actions">
+        <span><?php print $folder_mailto ?></span>
+        <span><?php print $folder_permalink ?></span>
+      </div>
       <?php print $onhover_move_options ?>
     </div>
   </div>
