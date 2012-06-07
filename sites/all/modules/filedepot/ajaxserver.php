@@ -1012,6 +1012,16 @@ function filedepot_dispatcher($action) {
       }
       break;
 
+      // Case for downloading selected files/folders as zip file
+    case 'downloadfilesarchive':
+      if ($user->uid > 0) {
+        $data = filedepotAjaxServer_downloadarchive();
+      }
+      else {
+        $data['retcode'] = 500;
+      }
+      break;
+
   }
 
   if ($action != 'autocompletetag') {

@@ -779,6 +779,8 @@ function filedepotAjaxServer_getMoreActions($op) {
         // $retval .= '<option value="archive">'. t ('Download as an archive') . '</option>';
       }
       else {
+        // Download selected files/folders as zip file.
+        $retval .= '<option value="downloadfilesarchive">' . t('Download selected files/folders') . '</option>';
         $retval .= '<option value="delete">' . t('Delete selected files') . '</option>';
         $retval .= '<option value="move">' . t('Move selected files') . '</option>';
         $retval .= '<option value="subscribe">' . t('Subscribe to update notifications') . '</option>';
@@ -1254,4 +1256,47 @@ function filedepotAjaxServer_broadcastAlert($fid, $comment) {
     $retval['retcode'] = 205;
   }
   return $retval;
+}
+
+function filedepotAjaxServer_downloadarchive() {
+  global $user;
+  $filedepot = filedepot_filedepot();
+
+  $retval = array();
+
+  $cid = intval($_POST['cid']);
+  $reportmode = check_plain($_POST['reportmode']);
+  $fileitems = check_plain($_POST['checkeditems']);
+  $files = explode(',', $fileitems);
+
+  // $filedepot_private_directory_path is the absolute path of filedepot_private directory.
+  $filedepot_private_directory_path = $_SERVER['DOCUMENT_ROOT'] . base_path() . 'filedepot_private/';
+  // $files_to_zip will contain an array of zip files.
+  $files_to_zip = array();
+  // $save_zip_path is the path and name of zip file to be created.
+  $save_zip_path = time() .'.zip';
+
+  if (!empty($_POST['checkedfolders'])) {
+    $folderitems = check_plain($_POST['checkedfolders']);
+    $folders = explode(',', $folderitems);
+    // Iterates through each of the files/folders selected.
+    foreach ($folders as $id) {
+      if ($id > 0 AND $_POST['multiaction'] == 'download-archive' AND $filedepot->checkPermission($id, 'admin')) {
+        $result = db_query("SELECT cid, fname FROM {filedepot_files} WHERE cid = %d", $id);
+        $no_results = TRUE;
+
+        while ($row = db_fetch_array($result)) {
+          $no_results = FALSE;
+          $files_to_zip[] = $filedepot_private_directory_path . $row['cid'] . $row['fname'];
+        }
+      }
+    }
+
+    $zip_save_result = create_zip($files_to_zip, $save_zip_path);
+    error_log("Hello", 3, "/var/tmp/my-errors.log");
+
+    $retval['retcode'] = $zip_save_result;
+
+    return $retval;
+  }
 }

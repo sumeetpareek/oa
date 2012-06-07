@@ -596,7 +596,69 @@ function checkMultiAction(selectoption) {
     YAHOO.util.Connect.asyncRequest('POST', surl, callback);
     return false;
 
-  } else {
+  } else if (selectoption == 'downloadfilesarchive') {        // Download selected files/folders as zip file
+    var msg = "Are you sure you want to download selected files/folders as zip file";
+
+    if (confirm(msg)) {
+      var surl = ajax_post_handler_url + '/downloadfilesarchive';
+      var callback = {
+        success : function(o) {
+          var json = o.responseText.substring(o.responseText.indexOf('{'), o.responseText.lastIndexOf('}') + 1);
+          var oResults = eval('(' + json + ')');
+          if (oResults.retcode == 200) {
+            if (document.frmtoolbar.reportmode.value == 'notifications') {
+              Dom.get('filelisting_container').innerHTML = oResults.displayhtml;
+              var myTabs = new YAHOO.widget.TabView('notification_report');
+              Dom.setStyle('filelistingheader', 'display', 'none');
+              Dom.setStyle('reportlisting_container', 'display', '');
+              YAHOO.filedepot.alternateRows.init('listing_record');
+              // Setup the Notifications Settings Dialog
+              Dom.setStyle('notificationsettingsdialog', 'display', 'block');
+              if (!Event.getListeners('clearnotificationhistory')) {   // Check first to see if listener already active
+                Event.on('clearnotificationhistory', 'click', doAJAXClearNotificationLog);
+              }
+            } else {
+              if (oResults.errmsg != '') {
+                showAlert(oResults.errmsg);
+              }
+              renderFileListing(oResults);
+              try {
+                if (oResults.lastrenderedfiles) {
+                  YAHOO.filedepot.getmorefiledata(oResults.lastrenderedfiles);
+                } else {
+                  YAHOO.filedepot.alternateRows.init('listing_record');
+                }
+              } catch (e) {
+                YAHOO.filedepot.alternateRows.init('listing_record');
+              }
+            }
+            Dom.get('headerchkall').checked = false;
+            Dom.get('multiaction').selectedIndex = 0;
+            Dom.get('multiaction').disabled = true;
+          } else {
+            alert(NEXLANG_errormsg1);
+          }
+          updateAjaxStatus();
+        },
+        failure : function(o) {
+          YAHOO.log('AJAX Error: ' + o.status);
+        },
+        argument : {},
+        timeout : 55000
+      }
+      updateAjaxStatus(NEXLANG_activity);
+      var formObject = document.frmtoolbar;
+      YAHOO.util.Connect.setForm(formObject);
+      YAHOO.util.Connect.asyncRequest('POST', surl, callback);
+      return false;
+
+    } else {
+      // Resetting the select element so user can easily re-select same
+      // option twice else onChange will not fire
+      timer = setTimeout("Dom.get('multiaction').selectedIndex=0", 3000);
+      return false;
+    }
+    } else {
     return true;
   }
 }
@@ -2204,7 +2266,7 @@ function renderLeftNavigation(oResults) {
   if((oResults.topfolders) && (oResults.topfolders.length)) {
     //Result is an array if more than one result, string otherwise
     if(YAHOO.lang.isArray(oResults.topfolders)) {
-      // Note: Set last parm to FALSE if you don't want the folder (textnode) to be rendered expanded  
+      // Note: Set last parm to FALSE if you don't want the folder (textnode) to be rendered expanded
       var topfolders = new YAHOO.widget.TextNode(NEXLANG_intelfolder3, root, true);
       topfolders.labelStyle = "icon-allfolders";
       for (var i=0; i<oResults.topfolders.length; i++) {
