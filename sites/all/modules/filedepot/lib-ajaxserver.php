@@ -1266,36 +1266,58 @@ function filedepotAjaxServer_downloadarchive() {
 
   $cid = intval($_POST['cid']);
   $reportmode = check_plain($_POST['reportmode']);
-  $fileitems = check_plain($_POST['checkeditems']);
-  $files = explode(',', $fileitems);
+//   $fileitems = check_plain($_POST['checkeditems']);
+//   $files = explode(',', $fileitems);
 
   // $filedepot_private_directory_path is the absolute path of filedepot_private directory.
   $filedepot_private_directory_path = $_SERVER['DOCUMENT_ROOT'] . base_path() . 'filedepot_private/';
   // $files_to_zip will contain an array of zip files.
   $files_to_zip = array();
   // $save_zip_path is the path and name of zip file to be created.
-  $save_zip_path = time() .'.zip';
+  $current_timestamp = time();
+  $save_zip_path = '/tmp/'. $current_timestamp . '.zip';
 
-  if (!empty($_POST['checkedfolders'])) {
-    $folderitems = check_plain($_POST['checkedfolders']);
-    $folders = explode(',', $folderitems);
+  if (!empty($_POST['checkeditems'])) {
+    $fileitems = check_plain($_POST['checkeditems']);
+    $files = explode(',', $fileitems);
     // Iterates through each of the files/folders selected.
-    foreach ($folders as $id) {
-      if ($id > 0 AND $_POST['multiaction'] == 'download-archive' AND $filedepot->checkPermission($id, 'admin')) {
-        $result = db_query("SELECT cid, fname FROM {filedepot_files} WHERE cid = %d", $id);
+    foreach ($files as $id) {
+      if ($id > 0 AND $_POST['multiaction'] == 'downloadfilesarchive' AND $filedepot->checkPermission($id, 'admin')) {
+        $result = db_query("SELECT * FROM {filedepot_files} WHERE fid = %d", $id);
         $no_results = TRUE;
 
         while ($row = db_fetch_array($result)) {
           $no_results = FALSE;
-          $files_to_zip[] = $filedepot_private_directory_path . $row['cid'] . $row['fname'];
+          $files_to_zip[] = $filedepot_private_directory_path . $row['cid'] .'/'. $row['fname'];
         }
       }
     }
 
-    $zip_save_result = create_zip($files_to_zip, $save_zip_path);
-    error_log("Hello", 3, "/var/tmp/my-errors.log");
+    $zip_save_result = create_zip($files_to_zip, $save_zip_path, $current_timestamp);
+    error_log(file_exists($save_zip_path));
+    $fileinfo = explode('/', $save_zip_path);
+    $filename = $fileinfo[2];
 
-    $retval['retcode'] = $zip_save_result;
+    header('Pragma: public');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+    header('Cache-Control: public');
+    header('Content-Description: File transfer');
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename=\"{$filename}\"');
+    header('Content-Transfer-Encoding: binary');
+    header('Content-Length:' . filesize($save_zip_path));
+    apache_setenv('no-gzip', '1');
+    ob_clean();
+    flush();
+    readfile($save_zip_path);
+
+    $retval['retcode'] = 200;
+//     $retval['cid'] = $cid;
+//     $retval['movedfiles'] = $movedfiles;
+//     $retval['message'] = $message;
+//     $retval['activefolder'] = theme('filedepot_activefolder');
+    $retval['displayhtml'] = filedepot_displayFolderListing($cid);
 
     return $retval;
   }

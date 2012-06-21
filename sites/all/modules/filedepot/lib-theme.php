@@ -234,23 +234,17 @@ function template_preprocess_filedepot_folderlisting(&$variables) {
   /**
    * mailto folders actions
    */
-  $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
-  if ($filedepot->ogmode_enabled) {
-	  // A direct URL to a folder with cid N, when in OG mode, is http://SITE/GROUP/filedepot?cid=N
-	  $current_group = og_get_group_context();
-  	$mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot?cid={$rec['cid']}"; // To be directly used in mail body hence no call to l()  	
-  }
-  else {
-    // A direct URL to a folder with cid N, when NOT in OG mode, is http://SITE/filedepot?cid=N
-    $mail_to_body_link = $base_url ."/filedepot?cid={$rec['cid']}"; // To be directly used in mail body hence no call to l()
-  }
- 
-  $variables['folder_mailto'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['name']}&body=$mail_to_body_link",
+  $mailtolinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+  $current_group = og_get_group_context();
+  $group_name = strtolower($current_group->og_description);
+  $link = $base_url . "/" . $group_name . "/filedepot_download/{$rec['cid']}";
+  $variables['folder_mailto'] = l($mailtolinkimage, "mailto:$user->mail?subject={$rec['name']}&body=$link",
     array('html' => TRUE, 'attributes' => array('title' => t('Mail this folder'))));
 
-  $permalink_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('permalink'));
-  $variables['folder_permalink'] = l($permalink_image, $mail_to_body_link,
+  $permalinklinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('permalink'));
+  $variables['folder_permalink'] = l($permalinklinkimage, "filedepot_download/{$rec['cid']}",
     array('html' => TRUE, 'attributes' => array('title' => t('Permalink'))));
+
 }
 
 function template_preprocess_filedepot_folder_moveoptions(&$variables) {
@@ -343,8 +337,12 @@ function template_preprocess_filedepot_filelisting(&$variables) {
   elseif ($filedepot->activeview == 'incoming') {
       $movelink = "<a class=\"moveincoming\" href=\"?fid={$rec['fid']}\" onClick=\"return false;\">" . t('Move') .'</a>';
       $deletelink = "<a class=\"deleteincoming\" href=\"?fid={$rec['fid']}\" onClick=\"return false;\">" . t('Delete') .'</a>';
+      $mailtolink = "<a class=\"mailtoincoming\" href=\"?fid={$rec['fid']}\" onClick=\"return false;\">" . t('Mailto') .'</a>'; // mailto
+      $permalinklink = "<a class=\"permalinkincoming\" href=\"?fid={$rec['fid']}\" onClick=\"return false;\">" . t('Mailto') .'</a>'; //permalink
       $variables['action1_link'] = $movelink;
       $variables['action2_link'] = $deletelink;
+      $variables['action3_link'] = $mailtolink; // mailto
+      $variables['action4_link'] = $permalinklink; // permalink
       $variables['submitter'] = db_result(db_query("SELECT name FROM {users} WHERE uid=%d", $rec['submitter']));
       $variables['show_submitter'] = '';
       $variables['show_foldername'] = 'none';
@@ -356,6 +354,8 @@ function template_preprocess_filedepot_filelisting(&$variables) {
     }
     $variables['action1_link'] = '&nbsp;';
     $variables['action2_link'] = '&nbsp;';
+    $variables['action3_link'] = '&nbsp;'; // maito
+    $variables['action4_link'] = '&nbsp;'; // permalink
     $variables['actionclass'] = 'noactions';
     $allowLockedFileDownloads = variable_get('filedepot_locked_file_download_enabled', 0);  // Check admin config setting
 
@@ -365,20 +365,23 @@ function template_preprocess_filedepot_filelisting(&$variables) {
         $downloadlinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('download'));
         $variables['action1_link'] =  l( $downloadlinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
           array('html' => TRUE, 'attributes' => array('title' => t('Download File'))));
-          
-			  /**
-			   * mailto file actions
-			   */
-			  $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
-			  if ($filedepot->ogmode_enabled) {
-			    $current_group = og_get_group_context();
-			    $mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()   
-			  }
-			  else {
-			    $mail_to_body_link = $base_url ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()
-			  }
-        $variables['action3_link'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['title']}&body=$mail_to_body_link",
+
+        /**
+         * mailto
+         */
+        $mailtolinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+        $current_group = og_get_group_context();
+        $group_name = strtolower($current_group->og_description);
+        $link = $base_url . "/" . $group_name . "/filedepot_download/{$rec['nid']}/{$rec['fid']}";
+        $variables['action3_link'] = l($mailtolinkimage, "mailto:$user->mail?subject={$rec['title']}&body=$link",
           array('html' => TRUE, 'attributes' => array('title' => t('Mail this file'))));
+
+        /**
+         * permalink
+         */
+        $permalinklinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('permalink'));
+        $variables['action4_link'] = l($permalinklinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
+        array('html' => TRUE, 'attributes' => array('title' => t('Permalink'))));
 
         if ($user->uid > 0 AND $filedepot->checkPermission($rec['cid'], array('upload_dir'), $user->uid)) {
           $variables['actionclass'] = 'twoactions';
@@ -397,18 +400,21 @@ function template_preprocess_filedepot_filelisting(&$variables) {
           array('html' => TRUE, 'attributes' => array('title' => t('Download File'))));
 
         /**
-         * mailto file actions
+         * mailto
          */
-        $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
-        if ($filedepot->ogmode_enabled) {
-          $current_group = og_get_group_context();
-          $mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()   
-        }
-        else {
-          $mail_to_body_link = $base_url ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()
-        }
-        $variables['action3_link'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['title']}&body=$mail_to_body_link",
+        $mailtolinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+        $current_group = og_get_group_context();
+        $group_name = strtolower($current_group->og_description);
+        $link = $base_url . "/" . $group_name . "/filedepot_download/{$rec['nid']}/{$rec['fid']}";
+        $variables['action3_link'] = l($mailtolinkimage, "mailto:$user->mail?subject={$rec['title']}&body=$link",
           array('html' => TRUE, 'attributes' => array('title' => t('Mail this file'))));
+
+        /**
+         * permalink
+         */
+        $permalinklinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('permalink'));
+        $variables['action4_link'] = l($permalinklinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
+        array('html' => TRUE, 'attributes' => array('title' => t('Permalink'))));
 
         $variables['action2_link'] = '';
         $variables['actionclass'] = 'oneaction';
@@ -422,18 +428,21 @@ function template_preprocess_filedepot_filelisting(&$variables) {
           array('html' => TRUE, 'attributes' => array('title' => t('Download File'))));
 
         /**
-         * mailto file actions
+         * mailto
          */
-        $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
-        if ($filedepot->ogmode_enabled) {
-          $current_group = og_get_group_context();
-          $mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()   
-        }
-        else {
-          $mail_to_body_link = $base_url ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()
-        }
-        $variables['action3_link'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['title']}&body=$mail_to_body_link",
+        $mailtolinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+        $current_group = og_get_group_context();
+        $group_name = strtolower($current_group->og_description);
+        $link = $base_url . "/" . $group_name . "/filedepot_download/{$rec['nid']}/{$rec['fid']}";
+        $variables['action3_link'] = l($mailtolinkimage, "mailto:$user->mail?subject={$rec['title']}&body=$link",
           array('html' => TRUE, 'attributes' => array('title' => t('Mail this file'))));
+
+        /**
+         * permalink
+         */
+        $permalinklinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('permalink'));
+        $variables['action4_link'] = l($permalinklinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
+        array('html' => TRUE, 'attributes' => array('title' => t('Permalink'))));
 
         if ($user->uid > 0 AND $filedepot->checkPermission($rec['cid'], array('upload_dir'), $user->uid)) {
           $variables['actionclass'] = 'twoactions';
@@ -452,18 +461,21 @@ function template_preprocess_filedepot_filelisting(&$variables) {
           array('html' => TRUE, 'attributes' => array('title' => t('Download File'))));
 
         /**
-         * mailto file actions
+         * mailto
          */
-        $mailto_link_image = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
-        if ($filedepot->ogmode_enabled) {
-          $current_group = og_get_group_context();
-          $mail_to_body_link = $base_url ."/". $current_group->purl ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()   
-        }
-        else {
-          $mail_to_body_link = $base_url ."/filedepot_download/{$rec['nid']}/{$rec['fid']}"; // To be directly used in mail body hence no call to l()
-        }
-        $variables['action3_link'] = l($mailto_link_image, "mailto:$user->mail?subject={$rec['title']}&body=$mail_to_body_link",
+        $mailtolinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('mailto'));
+        $current_group = og_get_group_context();
+        $group_name = strtolower($current_group->og_description);
+        $link = $base_url . "/" . $group_name . "/filedepot_download/{$rec['nid']}/{$rec['fid']}";
+        $variables['action3_link'] = l($mailtolinkimage, "mailto:$user->mail?subject={$rec['title']}&body=$link",
           array('html' => TRUE, 'attributes' => array('title' => t('Mail this file'))));
+
+        /**
+         * permalink
+         */
+        $permalinklinkimage = theme_image(drupal_get_path('module', 'filedepot') . '/css/images/' . $filedepot->getFileIcon('permalink'));
+        $variables['action4_link'] = l($permalinklinkimage, "filedepot_download/{$rec['nid']}/{$rec['fid']}",
+        array('html' => TRUE, 'attributes' => array('title' => t('Permalink'))));
 
         $variables['action2_link'] = '';
         $variables['actionclass'] = 'oneaction';

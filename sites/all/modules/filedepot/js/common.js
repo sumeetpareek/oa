@@ -606,35 +606,35 @@ function checkMultiAction(selectoption) {
           var json = o.responseText.substring(o.responseText.indexOf('{'), o.responseText.lastIndexOf('}') + 1);
           var oResults = eval('(' + json + ')');
           if (oResults.retcode == 200) {
-            if (document.frmtoolbar.reportmode.value == 'notifications') {
-              Dom.get('filelisting_container').innerHTML = oResults.displayhtml;
-              var myTabs = new YAHOO.widget.TabView('notification_report');
-              Dom.setStyle('filelistingheader', 'display', 'none');
-              Dom.setStyle('reportlisting_container', 'display', '');
-              YAHOO.filedepot.alternateRows.init('listing_record');
-              // Setup the Notifications Settings Dialog
-              Dom.setStyle('notificationsettingsdialog', 'display', 'block');
-              if (!Event.getListeners('clearnotificationhistory')) {   // Check first to see if listener already active
-                Event.on('clearnotificationhistory', 'click', doAJAXClearNotificationLog);
-              }
-            } else {
-              if (oResults.errmsg != '') {
-                showAlert(oResults.errmsg);
-              }
+//            if (document.frmtoolbar.reportmode.value == 'notifications') {
+//              Dom.get('filelisting_container').innerHTML = oResults.displayhtml;
+//              var myTabs = new YAHOO.widget.TabView('notification_report');
+//              Dom.setStyle('filelistingheader', 'display', 'none');
+//              Dom.setStyle('reportlisting_container', 'display', '');
+//              YAHOO.filedepot.alternateRows.init('listing_record');
+//              // Setup the Notifications Settings Dialog
+//              Dom.setStyle('notificationsettingsdialog', 'display', 'block');
+//              if (!Event.getListeners('clearnotificationhistory')) {   // Check first to see if listener already active
+//                Event.on('clearnotificationhistory', 'click', doAJAXClearNotificationLog);
+//              }
+//            } else {
+//              if (oResults.errmsg != '') {
+//                showAlert(oResults.errmsg);
+//              }
               renderFileListing(oResults);
-              try {
-                if (oResults.lastrenderedfiles) {
-                  YAHOO.filedepot.getmorefiledata(oResults.lastrenderedfiles);
-                } else {
-                  YAHOO.filedepot.alternateRows.init('listing_record');
-                }
-              } catch (e) {
-                YAHOO.filedepot.alternateRows.init('listing_record');
-              }
-            }
-            Dom.get('headerchkall').checked = false;
-            Dom.get('multiaction').selectedIndex = 0;
-            Dom.get('multiaction').disabled = true;
+//              try {
+//                if (oResults.lastrenderedfiles) {
+//                  YAHOO.filedepot.getmorefiledata(oResults.lastrenderedfiles);
+//                } else {
+//                  YAHOO.filedepot.alternateRows.init('listing_record');
+//                }
+//              } catch (e) {
+//                YAHOO.filedepot.alternateRows.init('listing_record');
+//              }
+//            }
+//            Dom.get('headerchkall').checked = false;
+//            Dom.get('multiaction').selectedIndex = 0;
+//            Dom.get('multiaction').disabled = true;
           } else {
             alert(NEXLANG_errormsg1);
           }
